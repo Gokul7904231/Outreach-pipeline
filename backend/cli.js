@@ -1,11 +1,11 @@
 const path = require("path");
-// Configure dotenv pointing to backend/.env
-require("dotenv").config({ path: path.join(__dirname, "backend", ".env") });
+// Configure dotenv pointing to backend/.env (where __dirname is the backend directory)
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-const prospeo = require("./backend/services/prospeo");
-const ai = require("./backend/services/ai");
-const brevo = require("./backend/services/brevo");
-const dbService = require("./backend/services/dbService");
+const prospeo = require("./services/prospeo");
+const ai = require("./services/ai");
+const brevo = require("./services/brevo");
+const dbService = require("./services/dbService");
 const readline = require("readline");
 
 const rl = readline.createInterface({
@@ -73,7 +73,7 @@ async function main() {
 
     if (!email) {
       console.log(`   ✉️ Enriching contact details via Prospeo...`);
-      // Introduce a slight delay (2s) if querying the real API to prevent rate limits
+      // Introduce a slight delay (2.2s) if querying the real API to prevent rate limits
       if (!searchResult.mock && i > 0) {
         await new Promise(r => setTimeout(r, 2200));
       }

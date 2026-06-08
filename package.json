@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "outreach": "node outreach-cli.js"
+    "cli": "node backend/cli.js"
   },
   "keywords": [],
   "author": "",

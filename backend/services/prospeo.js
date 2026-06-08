@@ -41,7 +41,7 @@ async function searchProspeoLeads({ person_search, person_job_title }) {
           "Content-Type": "application/json",
           "X-KEY": apiKey
         },
-        timeout: 5000
+        timeout: 25000
       }
     );
 
@@ -157,7 +157,7 @@ async function enrichProspeoLead(person_id, nameInfo = {}) {
           "Content-Type": "application/json",
           "X-KEY": apiKey
         },
-        timeout: 5000
+        timeout: 25000
       }
     );
 
@@ -235,7 +235,7 @@ async function getAccountInfo() {
       headers: {
         "X-KEY": apiKey
       },
-      timeout: 5000
+      timeout: 25000
     });
 
     if (response.data && !response.data.error) {

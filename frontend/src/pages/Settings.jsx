@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
 
-export default function Settings() {
+export default function Settings({ active }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     checkStatus();
   }, []);
+
+  useEffect(() => {
+    if (active) {
+      checkStatus();
+    }
+  }, [active]);
 
   const checkStatus = async () => {
     setLoading(true);

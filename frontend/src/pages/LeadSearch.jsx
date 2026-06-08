@@ -7,6 +7,7 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [enrichingId, setEnrichingId] = useState(null);
+  const [isMockSource, setIsMockSource] = useState(false);
 
   // Load default mock leads on mount
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
       const data = await response.json();
       if (data.success) {
         setLeads(data.results);
+        setIsMockSource(!!data.mock);
         if (!isInitial) {
           showToast(`Found ${data.results.length} prospects at ${searchDomain}!`, "success");
         }
@@ -113,6 +115,21 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
 
   const isAllSelected = leads.length > 0 && leads.every(lead => selectedLeads.some(l => l.person_id === lead.person_id));
 
+  const renderSkeletons = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "8px" }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} style={{ display: "flex", gap: "16px", alignItems: "center", borderBottom: "1px solid var(--card-border)", paddingBottom: "16px" }}>
+          <div className="skeleton" style={{ width: "22px", height: "22px", borderRadius: "4px", flexShrink: 0 }} />
+          <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div className="skeleton skeleton-title" style={{ width: "40%" }} />
+            <div className="skeleton skeleton-text" style={{ width: "70%" }} />
+          </div>
+          <div className="skeleton" style={{ width: "120px", height: "36px", borderRadius: "8px", flexShrink: 0 }} />
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div>
       <div className="panel-header">
@@ -167,8 +184,13 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
         {/* Right Search Results */}
         <div className="card" style={{ minHeight: "400px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: 600 }}>
-              Search Results {leads.length > 0 && `(${leads.length})`}
+            <h3 style={{ fontSize: "16px", fontWeight: 600, display: "flex", alignItems: "center", gap: "10px" }}>
+              <span>Search Results {leads.length > 0 && `(${leads.length})`}</span>
+              {leads.length > 0 && (
+                <span className={`badge ${isMockSource ? "badge-warning" : "badge-success"}`}>
+                  {isMockSource ? "MOCK DATA" : "REAL API"}
+                </span>
+              )}
             </h3>
             {selectedLeads.length > 0 && (
               <button className="btn btn-primary btn-secondary" onClick={onNavigateToOutreach}>
@@ -178,18 +200,32 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
           </div>
 
           {loading && leads.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "250px", gap: "12px" }}>
-              <div className="spinner" style={{ width: "40px", height: "40px" }} />
-              <div style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "monospace" }}>{statusText}</div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", color: "var(--text-muted)", fontSize: "13px", fontFamily: "monospace" }}>
+                <div className="spinner" style={{ width: "14px", height: "14px" }} />
+                <span>{statusText}</span>
+              </div>
+              {renderSkeletons()}
             </div>
           ) : leads.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "250px", color: "var(--text-muted)" }}>
-              <span style={{ fontSize: "32px", marginBottom: "12px" }}>🔍</span>
-              <p>No prospects found matching your search filters.</p>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "280px", color: "var(--text-muted)", gap: "12px" }}>
+              <span style={{ fontSize: "36px", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "var(--radius-full)" }}>🔍</span>
+              <h4 style={{ color: "var(--text-main)", fontWeight: 600, fontSize: "16px", textAlign: "center" }}>
+                {query 
+                  ? `No matching prospects found from ${isMockSource ? "MOCK DATA" : "REAL API"}.` 
+                  : "Start Sourcing Leads"
+                }
+              </h4>
+              <p style={{ fontSize: "13px", maxWidth: "320px", textAlign: "center" }}>
+                {query 
+                  ? "Try broader job titles or another company domain." 
+                  : "Enter a target company domain (e.g. stripe.com) and click Find Leads to populate prospects."
+                }
+              </p>
             </div>
           ) : (
             <div className="table-container">
-              <table className="table">
+              <table className="table responsive-table">
                 <thead>
                   <tr>
                     <th style={{ width: "50px" }}>
@@ -211,7 +247,7 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
                     const isSelected = selectedLeads.some(l => l.person_id === lead.person_id);
                     return (
                       <tr key={lead.person_id} style={isSelected ? { backgroundColor: "rgba(139, 92, 246, 0.03)" } : {}}>
-                        <td>
+                        <td data-label="Select">
                           <input
                             type="checkbox"
                             className="checkbox-custom"
@@ -219,7 +255,7 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
                             onChange={() => toggleSelectLead(lead)}
                           />
                         </td>
-                        <td>
+                        <td data-label="Name">
                           <div style={{ fontWeight: 600 }}>{lead.full_name}</div>
                           {lead.linkedin_url && (
                             <a 
@@ -232,11 +268,11 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
                             </a>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Role & Company">
                           <div style={{ fontSize: "13px" }}>{lead.current_job_title}</div>
                           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{lead.company} ({lead.company_website})</div>
                         </td>
-                        <td>
+                        <td data-label="Email Address">
                           {lead.email ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               <span style={{ fontSize: "13px", fontFamily: "monospace" }}>{lead.email}</span>
@@ -248,7 +284,7 @@ export default function LeadSearch({ selectedLeads, setSelectedLeads, onNavigate
                             </span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Actions">
                           {!lead.email ? (
                             <button
                               className="btn btn-secondary"

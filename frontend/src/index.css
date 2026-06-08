@@ -1,17 +1,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import './styles/tokens.css';
 
-:root {
-  --bg-color: #0b0f19;
-  --card-bg: #1f2937;
-  --card-border: rgba(255, 255, 255, 0.05);
-  --accent-color: #8b5cf6;
-  --accent-hover: #7c3aed;
-  --accent-glow: rgba(139, 92, 246, 0.25);
-  --text-main: #f9fafb;
-  --text-muted: #9ca3af;
-  --text-green: #10b981;
-  --text-red: #ef4444;
-  --sidebar-width: 250px;
+/* Skeleton Loader state details */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.03) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  width: 100%;
+  height: 16px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin-bottom: var(--space-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 95%;
+  margin-bottom: var(--space-xs);
+}
+
+.skeleton-btn {
+  height: 38px;
+  width: 120px;
+  border-radius: var(--radius-md);
 }
 
 * {
@@ -510,8 +540,157 @@ body {
 
 .checkbox-custom {
   cursor: pointer;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   accent-color: var(--accent-color);
 }
+
+/* Touch targets and SaaS premium hover microinteractions */
+.btn, .nav-item, .checkbox-custom {
+  min-height: 40px;
+  transition: var(--transition-fast);
+}
+
+.card, .nav-item, .btn {
+  transition: var(--transition-normal);
+}
+
+.nav-item:hover, .btn:hover {
+  transform: translateY(-1px);
+}
+
+.table tr {
+  transition: var(--transition-fast);
+}
+
+/* Collapsible responsive sidebar header drawer */
+@media (max-width: 1024px) {
+  .app-container {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--card-border);
+    padding: 12px 20px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .logo-container {
+    margin-bottom: 0;
+  }
+  
+  .sidebar-nav {
+    flex-direction: row;
+    gap: 12px;
+  }
+  
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 36px;
+  }
+  
+  .sidebar-footer {
+    display: none;
+  }
+  
+  .main-panel {
+    padding: 20px;
+    height: calc(100vh - 65px);
+    overflow-y: auto;
+  }
+  
+  .outreach-layout {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 640px) {
+  .logo-text {
+    display: none;
+  }
+  .nav-text {
+    display: none;
+  }
+  .sidebar {
+    padding: 8px 12px;
+  }
+  .sidebar-nav {
+    gap: 6px;
+  }
+  .nav-item {
+    padding: 8px;
+    min-width: 44px;
+    justify-content: center;
+  }
+}
+
+/* Responsive Table to Stacked Card list Conversion on Mobile Devices */
+@media (max-width: 768px) {
+  .responsive-table, 
+  .responsive-table thead, 
+  .responsive-table tbody, 
+  .responsive-table th, 
+  .responsive-table td, 
+  .responsive-table tr { 
+    display: block; 
+  }
+  
+  /* Hide table header but keep accessible */
+  .responsive-table thead tr { 
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  
+  .responsive-table tr { 
+    border: 1px solid var(--card-border);
+    margin-bottom: 16px;
+    background-color: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .responsive-table td { 
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03); 
+    position: relative;
+    padding: 12px 0;
+    padding-left: 45%; 
+    text-align: right;
+    font-size: 13px;
+  }
+
+  .responsive-table td:last-child {
+    border-bottom: none;
+  }
+  
+  .responsive-table td::before { 
+    position: absolute;
+    top: 12px;
+    left: 8px;
+    width: 40%; 
+    padding-right: 10px; 
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    content: attr(data-label);
+  }
+  
+  .search-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+

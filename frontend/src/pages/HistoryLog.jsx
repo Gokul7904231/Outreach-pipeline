@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-export default function HistoryLog() {
+export default function HistoryLog({ active }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -9,6 +9,12 @@ export default function HistoryLog() {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  useEffect(() => {
+    if (active) {
+      fetchHistory();
+    }
+  }, [active]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -27,6 +33,20 @@ export default function HistoryLog() {
     log.recipientName.toLowerCase().includes(search.toLowerCase()) ||
     log.company.toLowerCase().includes(search.toLowerCase()) ||
     log.recipientEmail.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const renderSkeletons = () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "8px" }}>
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} style={{ display: "flex", gap: "16px", alignItems: "center", borderBottom: "1px solid var(--card-border)", paddingBottom: "16px" }}>
+          <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div className="skeleton skeleton-title" style={{ width: "30%" }} />
+            <div className="skeleton skeleton-text" style={{ width: "60%" }} />
+          </div>
+          <div className="skeleton" style={{ width: "120px", height: "32px", borderRadius: "8px", flexShrink: 0 }} />
+        </div>
+      ))}
+    </div>
   );
 
   return (
@@ -52,17 +72,25 @@ export default function HistoryLog() {
         </div>
 
         {loading ? (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "200px" }}>
-            <div className="spinner" style={{ width: "32px", height: "32px" }} />
+          renderSkeletons()
+        ) : logs.length === 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "280px", color: "var(--text-muted)", gap: "12px" }}>
+            <span style={{ fontSize: "36px", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "var(--radius-full)" }}>📂</span>
+            <h4 style={{ color: "var(--text-main)", fontWeight: 600, fontSize: "16px" }}>No outreach history yet</h4>
+            <p style={{ fontSize: "13px", maxWidth: "320px", textAlign: "center" }}>Deploy campaigns to see your email dispatch logs, statuses, and payload audits here.</p>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "200px", color: "var(--text-muted)" }}>
-            <span style={{ fontSize: "28px", marginBottom: "12px" }}>📂</span>
-            <p>No outreach logs found.</p>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "280px", color: "var(--text-muted)", gap: "12px" }}>
+            <span style={{ fontSize: "36px", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "var(--radius-full)" }}>🔍</span>
+            <h4 style={{ color: "var(--text-main)", fontWeight: 600, fontSize: "16px" }}>No matching logs found</h4>
+            <p style={{ fontSize: "13px", maxWidth: "320px", textAlign: "center" }}>No logs match "{search}". Try searching with a different recipient name, email, or company.</p>
+            <button className="btn btn-secondary" style={{ marginTop: "8px", padding: "8px 16px", fontSize: "13px" }} onClick={() => setSearch("")}>
+              Clear Search
+            </button>
           </div>
         ) : (
           <div className="table-container">
-            <table className="table">
+            <table className="table responsive-table">
               <thead>
                 <tr>
                   <th>Dispatch Date</th>
@@ -77,7 +105,7 @@ export default function HistoryLog() {
               <tbody>
                 {filteredLogs.map((log) => (
                   <tr key={log.id}>
-                    <td style={{ fontSize: "13px" }}>
+                    <td data-label="Dispatch Date" style={{ fontSize: "13px" }}>
                       {new Date(log.timestamp).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -85,28 +113,28 @@ export default function HistoryLog() {
                         minute: "2-digit"
                       })}
                     </td>
-                    <td>
+                    <td data-label="Recipient">
                       <div style={{ fontWeight: 600 }}>{log.recipientName}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "monospace" }}>{log.recipientEmail}</div>
                     </td>
-                    <td>
+                    <td data-label="Company & Role">
                       <div style={{ fontSize: "13px" }}>{log.company}</div>
                       <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{log.jobTitle}</div>
                     </td>
-                    <td style={{ fontSize: "13px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <td data-label="Subject" style={{ fontSize: "13px", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {log.subject}
                     </td>
-                    <td>
+                    <td data-label="Mode">
                       <span className={`badge ${log.mode === "Real API" ? "badge-success" : "badge-warning"}`}>
                         {log.mode}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={`badge ${log.status === "Sent" ? "badge-success" : "badge-danger"}`}>
                         {log.status}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Details">
                       <button
                         className="btn btn-secondary"
                         style={{ padding: "6px 12px", fontSize: "12px" }}

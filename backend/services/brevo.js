@@ -14,7 +14,7 @@ if (brevoKey) {
 /**
  * Sends a transactional email using Brevo SMTP (with Mock Fallback).
  */
-async function sendEmail({ toEmail, toName, subject, htmlContent }) {
+async function sendBrevoEmail({ toEmail, toName, subject, htmlContent }) {
   const senderEmail = process.env.SENDER_EMAIL || "test-outreach@gmail.com";
   const senderName = process.env.SENDER_NAME || "Outreach SDR";
 
@@ -61,5 +61,5 @@ async function sendEmail({ toEmail, toName, subject, htmlContent }) {
 }
 
 module.exports = {
-  sendEmail
+  sendBrevoEmail
 };

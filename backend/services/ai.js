@@ -137,6 +137,5 @@ Gokul`;
 }
 
 module.exports = {
-  generateOutreach,
-  getMockEmail
+  generateOutreach
 };

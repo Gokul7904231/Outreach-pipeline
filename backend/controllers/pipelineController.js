@@ -29,8 +29,11 @@ async function getStatus(req, res) {
  */
 async function searchLeads(req, res) {
   const { person_search, person_job_title } = req.body;
-  const result = await prospeoService.searchLeads({ person_search, person_job_title });
-  return res.json(result);
+  const result = await prospeoService.searchProspeoLeads({ person_search, person_job_title });
+  return res.json({
+    ...result,
+    source: result.mock ? "MOCK" : "REAL"
+  });
 }
 
 /**
@@ -39,7 +42,7 @@ async function searchLeads(req, res) {
  */
 async function enrichLead(req, res) {
   const { person_id, first_name, company_website } = req.body;
-  const result = await prospeoService.enrichLead(person_id, { first_name, company_website });
+  const result = await prospeoService.enrichProspeoLead(person_id, { first_name, company_website });
   return res.json(result);
 }
 
@@ -58,18 +61,21 @@ async function generateEmail(req, res) {
  * Sends an email via Brevo and logs to db.json.
  */
 async function sendEmail(req, res) {
-  const { toEmail, toName, subject, htmlContent, company, role } = req.body;
+  const { toEmail, toName, subject, htmlContent, company, role, useTestRecipient } = req.body;
 
   if (!toEmail) {
     return res.status(400).json({ success: false, error: "Recipient email is required" });
   }
 
-  const result = await brevoService.sendEmail({ toEmail, toName, subject, htmlContent });
+  const SAFE_TEST_EMAIL = "asgokul2004@gmail.com";
+  const targetEmail = useTestRecipient ? SAFE_TEST_EMAIL : toEmail;
+
+  const result = await brevoService.sendBrevoEmail({ toEmail: targetEmail, toName, subject, htmlContent });
 
   // Add to database logs
   const log = dbService.addHistoryLog({
-    recipientEmail: toEmail,
-    recipientName: toName || toEmail,
+    recipientEmail: targetEmail,
+    recipientName: toName || targetEmail,
     company: company || "N/A",
     jobTitle: role || "N/A",
     subject: subject,
@@ -97,7 +103,8 @@ async function generateAndSend(req, res) {
     current_job_title, 
     company, 
     company_website, 
-    tone 
+    tone,
+    useTestRecipient
   } = req.body;
 
   const fullName = `${first_name} ${last_name}`;
@@ -106,7 +113,7 @@ async function generateAndSend(req, res) {
 
   // Step 1: Enrich lead if email is not pre-provided
   if (!email) {
-    const enrichResult = await prospeoService.enrichLead(person_id, { first_name, company_website });
+    const enrichResult = await prospeoService.enrichProspeoLead(person_id, { first_name, company_website });
     email = enrichResult.email;
     enrichMock = enrichResult.mock;
     
@@ -129,9 +136,12 @@ async function generateAndSend(req, res) {
   const emailSubject = `Partnership opportunity for ${company}`;
   const formattedHtml = genResult.text.replace(/\n/g, "<br>");
 
+  const SAFE_TEST_EMAIL = "asgokul2004@gmail.com";
+  const targetEmail = useTestRecipient ? SAFE_TEST_EMAIL : email;
+
   // Step 3: Send via Brevo
-  const sendResult = await brevoService.sendEmail({
-    toEmail: email,
+  const sendResult = await brevoService.sendBrevoEmail({
+    toEmail: targetEmail,
     toName: fullName,
     subject: emailSubject,
     htmlContent: formattedHtml
@@ -139,7 +149,7 @@ async function generateAndSend(req, res) {
 
   // Step 4: Write to History logs
   const log = dbService.addHistoryLog({
-    recipientEmail: email,
+    recipientEmail: targetEmail,
     recipientName: fullName,
     company: company,
     jobTitle: current_job_title,
@@ -152,7 +162,7 @@ async function generateAndSend(req, res) {
 
   return res.json({
     success: sendResult.success,
-    email,
+    email: targetEmail,
     generatedText: genResult.text,
     messageId: sendResult.messageId,
     log
@@ -164,7 +174,7 @@ async function generateAndSend(req, res) {
  * Retrieves sent logs from db.json.
  */
 async function getHistory(req, res) {
-  const history = dbService.getHistory();
+  const history = dbService.fetchHistoryLogs();
   return res.json(history);
 }
 

@@ -20,33 +20,7 @@ export default function App() {
     }, 3500);
   };
 
-  const renderActiveView = () => {
-    switch (activeTab) {
-      case "search":
-        return (
-          <LeadSearch
-            selectedLeads={selectedLeads}
-            setSelectedLeads={setSelectedLeads}
-            onNavigateToOutreach={() => setActiveTab("outreach")}
-            showToast={showToast}
-          />
-        );
-      case "outreach":
-        return (
-          <OutreachPanel
-            selectedLeads={selectedLeads}
-            setSelectedLeads={setSelectedLeads}
-            showToast={showToast}
-          />
-        );
-      case "logs":
-        return <HistoryLog />;
-      case "settings":
-        return <Settings />;
-      default:
-        return <LeadSearch setSelectedLeads={setSelectedLeads} showToast={showToast} />;
-    }
-  };
+  // renderActiveView helper is deprecated in favor of hidden display divs to preserve component state
 
   return (
     <div className="app-container">
@@ -63,7 +37,7 @@ export default function App() {
             onClick={() => setActiveTab("search")}
           >
             <span className="nav-icon">🔍</span>
-            <span>Lead Search</span>
+            <span className="nav-text">Lead Search</span>
           </div>
 
           <div
@@ -73,7 +47,7 @@ export default function App() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <span className="nav-icon">✉️</span>
-              <span>Outreach</span>
+              <span className="nav-text">Outreach</span>
             </div>
             {selectedLeads.length > 0 && (
               <span 
@@ -96,7 +70,7 @@ export default function App() {
             onClick={() => setActiveTab("logs")}
           >
             <span className="nav-icon">📊</span>
-            <span>History Logs</span>
+            <span className="nav-text">History Logs</span>
           </div>
 
           <div
@@ -104,7 +78,7 @@ export default function App() {
             onClick={() => setActiveTab("settings")}
           >
             <span className="nav-icon">⚙️</span>
-            <span>Settings</span>
+            <span className="nav-text">Settings</span>
           </div>
         </nav>
 
@@ -116,7 +90,28 @@ export default function App() {
 
       {/* Main Panel Viewport */}
       <main className="main-panel">
-        {renderActiveView()}
+        <div style={{ display: activeTab === "search" ? "block" : "none" }}>
+          <LeadSearch
+            selectedLeads={selectedLeads}
+            setSelectedLeads={setSelectedLeads}
+            onNavigateToOutreach={() => setActiveTab("outreach")}
+            showToast={showToast}
+          />
+        </div>
+        <div style={{ display: activeTab === "outreach" ? "block" : "none" }}>
+          <OutreachPanel
+            selectedLeads={selectedLeads}
+            setSelectedLeads={setSelectedLeads}
+            onNavigateToSearch={() => setActiveTab("search")}
+            showToast={showToast}
+          />
+        </div>
+        <div style={{ display: activeTab === "logs" ? "block" : "none" }}>
+          <HistoryLog active={activeTab === "logs"} />
+        </div>
+        <div style={{ display: activeTab === "settings" ? "block" : "none" }}>
+          <Settings active={activeTab === "settings"} />
+        </div>
       </main>
 
       {/* Toast Notification Container */}

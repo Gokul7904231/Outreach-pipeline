@@ -3,8 +3,17 @@ const axios = require("axios");
 /**
  * Searches B2B leads using Prospeo API (with Mock Fallback).
  */
-async function searchLeads({ person_search, person_job_title }) {
+async function searchProspeoLeads({ person_search, person_job_title }) {
   const apiKey = process.env.PROSPEO_API_KEY;
+
+  if (!person_search) {
+    console.log("🔌 [Prospeo] Target domain is empty. Returning demo Mock Sourcing.");
+    return {
+      success: true,
+      results: getMockLeads({ person_search, person_job_title }),
+      mock: true
+    };
+  }
 
   if (!apiKey) {
     console.log("🔌 [Prospeo] API key missing. Using Mock Sourcing.");
@@ -18,10 +27,10 @@ async function searchLeads({ person_search, person_job_title }) {
   try {
     const filters = {};
     if (person_search) {
-      filters.person_search = person_search;
+      filters.person_search = { company_domain: person_search };
     }
     if (person_job_title) {
-      filters.person_job_title = person_job_title;
+      filters.person_job_title = { include: [ person_job_title ] };
     }
 
     const response = await axios.post(
@@ -36,36 +45,74 @@ async function searchLeads({ person_search, person_job_title }) {
       }
     );
 
-    if (response.data && response.data.status === "success") {
-      const results = (response.data.results || []).map(r => ({
-        person_id: r.person_id,
-        first_name: r.first_name,
-        last_name: r.last_name,
-        full_name: r.full_name || `${r.first_name} ${r.last_name}`,
-        current_job_title: r.current_job_title || r.headline || "Professional",
-        company: r.company_name || r.current_company?.name || "Target Company",
-        company_website: r.company_website || r.current_company?.website || "",
-        linkedin_url: r.linkedin_url || "",
-        email: r.email || "", 
-        email_status: r.email ? "verified" : "not_found",
-        isMock: false
-      }));
+    console.log("[Prospeo Search Raw Response]", JSON.stringify(response.data, null, 2));
+
+    if (response.data && response.data.error === true) {
+      return {
+        success: false,
+        errorMsg: response.data.filter_error || response.data.error_code || "Prospeo search returned error",
+        rawResponse: response.data,
+        mock: false
+      };
+    }
+
+    if (response.data && !response.data.error) {
+      const results = (response.data.results || []).map(r => {
+        const p = r.person || {};
+        const c = r.company || {};
+        
+        // Parse email safely from search result if available and revealed
+        const emailObj = p.email || {};
+        let email = "";
+        let email_status = "not_found";
+        
+        if (typeof emailObj === "object" && emailObj !== null) {
+          if (emailObj.revealed === true && typeof emailObj.email === "string") {
+            email = emailObj.email;
+            email_status = typeof emailObj.status === "string" ? emailObj.status : "verified";
+          }
+        } else if (typeof emailObj === "string" && emailObj && !emailObj.includes("*")) {
+          email = emailObj;
+          email_status = "verified";
+        }
+
+        return {
+          person_id: p.person_id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          full_name: p.full_name || `${p.first_name} ${p.last_name}`,
+          current_job_title: p.current_job_title || p.headline || "Professional",
+          company: c.name || "Target Company",
+          company_website: c.website || "",
+          linkedin_url: p.linkedin_url || "",
+          email,
+          email_status,
+          isMock: false
+        };
+      });
 
       return {
         success: true,
         results,
-        mock: false
+        mock: false,
+        debug: {
+          rawResponse: response.data,
+          parsedCount: results.length
+        }
       };
     } else {
-      throw new Error(response.data?.message || "Prospeo search returned failed status");
+      throw new Error(response.data?.message || "Prospeo search returned unknown response structure");
     }
   } catch (error) {
-    console.warn("⚠️ [Prospeo] API failure. Falling back to Mock Sourcing:", error.response?.data || error.message);
+    console.warn("⚠️ [Prospeo Search API failure]", error.response?.data || error.message);
     return {
-      success: true,
-      results: getMockLeads({ person_search, person_job_title }),
-      mock: true,
-      errorMsg: error.response?.data?.message || error.message
+      success: false,
+      errorMsg: error.response?.data?.message || error.response?.data?.error_code || error.message,
+      mock: false,
+      debug: {
+        rawResponse: error.response?.data || null,
+        fallbackReason: error.message
+      }
     };
   }
 }
@@ -73,7 +120,7 @@ async function searchLeads({ person_search, person_job_title }) {
 /**
  * Enriches a specific lead using Prospeo API to find their email address.
  */
-async function enrichLead(person_id, nameInfo = {}) {
+async function enrichProspeoLead(person_id, nameInfo = {}) {
   const apiKey = process.env.PROSPEO_API_KEY;
 
   if (person_id && person_id.startsWith("mock_")) {
@@ -100,7 +147,11 @@ async function enrichLead(person_id, nameInfo = {}) {
   try {
     const response = await axios.post(
       "https://api.prospeo.io/enrich-person",
-      { person_id },
+      {
+        data: {
+          person_id
+        }
+      },
       {
         headers: {
           "Content-Type": "application/json",
@@ -110,29 +161,53 @@ async function enrichLead(person_id, nameInfo = {}) {
       }
     );
 
-    if (response.data && response.data.status === "success") {
-      const emailData = response.data.response || response.data.data || {};
-      const email = emailData.email || response.data.email || "";
-      const email_status = emailData.email_status || "verified";
+    console.log("[Prospeo Enrich Raw Response]", JSON.stringify(response.data, null, 2));
+
+    if (response.data && response.data.error === true) {
+      return {
+        success: false,
+        errorMsg: response.data.error_code || "Prospeo enrichment returned error",
+        rawResponse: response.data,
+        mock: false
+      };
+    }
+
+    if (response.data && !response.data.error) {
+      const p = response.data.person || {};
+      const emailObj = p.email || {};
+      
+      let email = "";
+      let email_status = "verified";
+      
+      if (typeof emailObj === "object" && emailObj !== null) {
+        email = typeof emailObj.email === "string" ? emailObj.email : "";
+        email_status = typeof emailObj.status === "string" ? emailObj.status : "verified";
+      } else if (typeof emailObj === "string") {
+        email = emailObj;
+      }
 
       return {
         success: true,
         email,
         email_status,
-        mock: false
+        mock: false,
+        debug: {
+          rawResponse: response.data
+        }
       };
     } else {
-      throw new Error(response.data?.message || "Prospeo enrichment returned failed status");
+      throw new Error(response.data?.message || "Prospeo enrichment returned unknown response structure");
     }
   } catch (error) {
-    console.warn("⚠️ [Prospeo] Enrichment failure. Generating fallback domain email:", error.message);
-    const fallbackEmail = `${(nameInfo.first_name || "contact").toLowerCase()}@${(nameInfo.company_website || "company.com").toLowerCase()}`;
+    console.warn("⚠️ [Prospeo Enrich API failure]", error.response?.data || error.message);
     return {
-      success: true,
-      email: fallbackEmail,
-      email_status: "verified",
-      mock: true,
-      errorMsg: error.message
+      success: false,
+      errorMsg: error.response?.data?.message || error.response?.data?.error_code || error.message,
+      mock: false,
+      debug: {
+        rawResponse: error.response?.data || null,
+        fallbackReason: error.message
+      }
     };
   }
 }
@@ -251,14 +326,14 @@ function getMockLeads({ person_search, person_job_title } = {}) {
     },
     {
       person_id: "mock_5",
-      first_name: "David",
-      last_name: "Lee",
-      full_name: "David Lee",
-      current_job_title: "AI Engineer",
-      company: "Anthropic",
-      company_website: "anthropic.com",
-      linkedin_url: "https://linkedin.com/in/davidlee",
-      email: "david.lee@anthropic.com",
+      first_name: "Gokul",
+      last_name: "Developer",
+      full_name: "Gokul (Developer)",
+      current_job_title: "Lead Engineer",
+      company: "Outreach.AI",
+      company_website: "outreach-pipeline.com",
+      linkedin_url: "https://linkedin.com/in/gokul",
+      email: "asgokul2004@gmail.com",
       email_status: "verified",
       isMock: true
     }
@@ -269,8 +344,8 @@ function getMockLeads({ person_search, person_job_title } = {}) {
     if (person_search) {
       const q = person_search.toLowerCase();
       match = match && (
-        lead.full_name.toLowerCase().includes(q) || 
-        lead.company.toLowerCase().includes(q) || 
+        lead.full_name.toLowerCase().includes(q) ||
+        lead.company.toLowerCase().includes(q) ||
         lead.company_website.toLowerCase().includes(q)
       );
     }
@@ -283,8 +358,8 @@ function getMockLeads({ person_search, person_job_title } = {}) {
 }
 
 module.exports = {
-  searchLeads,
-  enrichLead,
+  searchProspeoLeads,
+  enrichProspeoLead,
   getAccountInfo,
   getMockLeads
 };

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
+import OutreachQueue from "../components/outreach/OutreachQueue";
+import OutreachControls from "../components/outreach/OutreachControls";
+import OutreachPreview from "../components/outreach/OutreachPreview";
 
-export default function OutreachPanel({ selectedLeads, setSelectedLeads, showToast }) {
+export default function OutreachPanel({ selectedLeads, setSelectedLeads, onNavigateToSearch, showToast }) {
   const [activeLead, setActiveLead] = useState(null);
   const [tone, setTone] = useState("Professional");
   const [customGoal, setCustomGoal] = useState("Introduce our outreach pipeline automation solution and schedule a quick call.");
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
   const [statusText, setStatusText] = useState("");
+  const [useTestRecipient, setUseTestRecipient] = useState(true);
 
   // Keep tracks of draft copy per lead id
   const [drafts, setDrafts] = useState({}); // { [leadId]: { subject, body } }
@@ -20,7 +24,6 @@ export default function OutreachPanel({ selectedLeads, setSelectedLeads, showToa
   // Set default draft for active lead when it loads, if not already generated
   useEffect(() => {
     if (activeLead && !drafts[activeLead.person_id]) {
-      // Create a default local template before AI is run
       const defaultSubject = `Partnership opportunity for ${activeLead.company}`;
       const defaultBody = `Dear ${activeLead.first_name || activeLead.full_name},\n\nI noticed your work as ${activeLead.current_job_title} at ${activeLead.company} and wanted to reach out.\n\nWe have built a B2B outreach platform that integrates database extraction with personalized messaging. Given your focus, I thought this might be interesting to look at.\n\nWould you be open to a quick 10-minute chat next Tuesday?\n\nSincerely,\nGokul`;
       
@@ -125,20 +128,19 @@ export default function OutreachPanel({ selectedLeads, setSelectedLeads, showToa
           subject: currentDraft.subject,
           htmlContent: formattedHtml,
           company: activeLead.company,
-          role: activeLead.current_job_title
+          role: activeLead.current_job_title,
+          useTestRecipient: useTestRecipient
         })
       });
       const data = await response.json();
       if (data.success) {
         showToast("Email dispatched successfully! logged to DB.", "success");
-        // Remove active lead from selection list once sent to clean up queue
         setSelectedLeads(prev => prev.filter(l => l.person_id !== activeLead.person_id));
         setDrafts(prev => {
           const updated = { ...prev };
           delete updated[activeLead.person_id];
           return updated;
         });
-        // Set new active lead
         const remaining = selectedLeads.filter(l => l.person_id !== activeLead.person_id);
         setActiveLead(remaining.length > 0 ? remaining[0] : null);
       } else {
@@ -181,201 +183,54 @@ export default function OutreachPanel({ selectedLeads, setSelectedLeads, showToa
       </div>
 
       {selectedLeads.length === 0 ? (
-        <div className="card" style={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", minHeight: "400px", color: "var(--text-muted)" }}>
-          <span style={{ fontSize: "40px", marginBottom: "16px" }}>🚀</span>
-          <h3 style={{ color: "var(--text-main)", marginBottom: "8px", fontSize: "18px" }}>No prospects in the outreach queue</h3>
-          <p style={{ textAlign: "center", maxWidth: "400px", fontSize: "14px" }}>
-            Go to the <strong>Lead Search</strong> tab, filter contacts, tick the checkboxes, and send them here to personalize emails.
+        <div className="card" style={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", minHeight: "400px", color: "var(--text-muted)", gap: "16px" }}>
+          <span style={{ fontSize: "36px", background: "rgba(255,255,255,0.03)", padding: "16px", borderRadius: "var(--radius-full)" }}>✉️</span>
+          <h3 style={{ color: "var(--text-main)", fontWeight: 600, fontSize: "18px" }}>No prospects in the outreach queue</h3>
+          <p style={{ textAlign: "center", maxWidth: "360px", fontSize: "13px", color: "var(--text-muted)", lineHeight: 1.6 }}>
+            Go to the Lead Search tab, filter contacts, tick the checkboxes, and click "Proceed to Outreach" to personalize your campaigns.
           </p>
+          <button className="btn btn-primary" onClick={onNavigateToSearch} style={{ marginTop: "8px" }}>
+            Find Prospects
+          </button>
         </div>
       ) : (
         <div className="outreach-layout">
-          {/* Left panel: selected queue list */}
+          {/* Left panel: Queue Sidebar */}
           <div className="outreach-sidebar">
-            <div className="card" style={{ padding: "16px", marginBottom: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h4 style={{ fontSize: "14px", fontWeight: 600 }}>Queue ({selectedLeads.length})</h4>
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ padding: "4px 8px", fontSize: "11px" }}
-                  onClick={() => { setSelectedLeads([]); setActiveLead(null); }}
-                >
-                  Clear All
-                </button>
-              </div>
+            <OutreachQueue
+              selectedLeads={selectedLeads}
+              setSelectedLeads={setSelectedLeads}
+              activeLead={activeLead}
+              setActiveLead={setActiveLead}
+              removeLeadFromQueue={removeLeadFromQueue}
+            />
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "300px", overflowY: "auto" }}>
-                {selectedLeads.map((lead) => {
-                  const isActive = activeLead && activeLead.person_id === lead.person_id;
-                  return (
-                    <div
-                      key={lead.person_id}
-                      onClick={() => setActiveLead(lead)}
-                      style={{
-                        padding: "12px",
-                        borderRadius: "8px",
-                        backgroundColor: isActive ? "rgba(139, 92, 246, 0.1)" : "#111827",
-                        border: isActive ? "1px solid rgba(139, 92, 246, 0.3)" : "1px solid var(--card-border)",
-                        cursor: "pointer",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        transition: "all 0.15s ease"
-                      }}
-                    >
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "8px" }}>
-                        <div style={{ fontWeight: 600, fontSize: "13px", color: isActive ? "var(--text-main)" : "var(--text-main)" }}>
-                          {lead.full_name}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                          {lead.company}
-                        </div>
-                      </div>
-                      <button
-                        style={{ background: "none", border: "none", color: "#6b7280", fontSize: "14px", cursor: "pointer" }}
-                        onClick={(e) => removeLeadFromQueue(lead.person_id, e)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Campaign Options */}
-            <div className="card" style={{ padding: "16px", marginBottom: 0 }}>
-              <h4 style={{ fontSize: "14px", fontWeight: 600, marginBottom: "16px" }}>AI Copywriting Controls</h4>
-
-              <div className="form-group">
-                <label className="form-label">Email Tone</label>
-                <select
-                  className="input-field select-field"
-                  value={tone}
-                  onChange={(e) => setTone(e.target.value)}
-                >
-                  <option value="Professional">👔 Professional</option>
-                  <option value="Friendly">👋 Friendly</option>
-                  <option value="Startup Casual">⚡ Startup Casual</option>
-                  <option value="Sales Focused">💰 Sales Focused</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Outreach Goal</label>
-                <textarea
-                  className="input-field"
-                  rows="3"
-                  placeholder="e.g. Schedule a demo session next week"
-                  value={customGoal}
-                  onChange={(e) => setCustomGoal(e.target.value)}
-                  style={{ resize: "none", fontSize: "13px" }}
-                />
-              </div>
-
-              <button
-                className="btn btn-primary"
-                style={{ width: "100%" }}
-                onClick={handleGenerateAI}
-                disabled={generating || !activeLead}
-              >
-                {generating ? <div className="spinner" /> : "Personalize Draft with Gemini"}
-              </button>
-            </div>
+            <OutreachControls
+              tone={tone}
+              setTone={setTone}
+              customGoal={customGoal}
+              setCustomGoal={setCustomGoal}
+              handleGenerateAI={handleGenerateAI}
+              generating={generating}
+              activeLead={activeLead}
+              useTestRecipient={useTestRecipient}
+              setUseTestRecipient={setUseTestRecipient}
+            />
           </div>
 
-          {/* Right panel: Live Preview & Editor */}
+          {/* Right panel: Editor Card */}
           <div className="outreach-preview-panel">
-            {activeLead ? (
-              <div className="card" style={{ display: "flex", flexDirection: "column", height: "100%", margin: 0 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                  <h4 style={{ fontSize: "16px", fontWeight: 600 }}>Draft Preview</h4>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      className="btn btn-secondary"
-                      style={{ padding: "8px 16px", fontSize: "13px" }}
-                      onClick={handleGenerateAI}
-                      disabled={generating}
-                    >
-                      Regenerate
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      style={{ padding: "8px 20px", fontSize: "13px" }}
-                      onClick={handleSendEmail}
-                      disabled={sending || !activeLead.email}
-                    >
-                      {sending ? <div className="spinner" /> : "Send Email via Brevo"}
-                    </button>
-                  </div>
-                </div>
-
-                {!activeLead.email && (
-                  <div style={{ padding: "10px 14px", backgroundColor: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "6px", color: "var(--text-red)", fontSize: "13px", marginBottom: "16px" }}>
-                    ⚠️ No email address verified for this prospect. Please go back to Lead Search and click <strong>Find Email</strong> to enrich.
-                  </div>
-                )}
-
-                <div style={{ position: "relative", flexGrow: 1, display: "flex", flexDirection: "column" }}>
-                  {(generating || sending) && (
-                    <div 
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: "rgba(17, 24, 39, 0.85)",
-                        backdropFilter: "blur(2px)",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: "16px",
-                        borderRadius: "8px",
-                        zIndex: 10
-                      }}
-                    >
-                      <div className="spinner" style={{ width: "36px", height: "36px" }} />
-                      <div style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "monospace", letterSpacing: "0.5px" }}>
-                        {statusText}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="email-preview-card" style={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
-                    <div className="email-meta-row">
-                      <span className="email-meta-label">To:</span>
-                      <span className="email-meta-val">
-                        {activeLead.full_name} &lt;{activeLead.email || "no-email-sourced@domain.com"}&gt;
-                      </span>
-                    </div>
-                    <div className="email-meta-row">
-                      <span className="email-meta-label">Subject:</span>
-                      <input
-                        type="text"
-                        className="email-meta-val"
-                        style={{ background: "none", border: "none", outline: "none", color: "var(--text-main)", flexGrow: 1, padding: 0, fontFamily: "inherit" }}
-                        value={drafts[activeLead.person_id]?.subject || ""}
-                        onChange={(e) => handleDraftChange("subject", e.target.value)}
-                      />
-                    </div>
-
-                    <textarea
-                      className="email-body-editor"
-                      value={drafts[activeLead.person_id]?.body || ""}
-                      onChange={(e) => handleDraftChange("body", e.target.value)}
-                      placeholder="Generating personalized copy..."
-                      disabled={generating}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="card" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", margin: 0, color: "var(--text-muted)" }}>
-                Select a lead from the queue list to start editing.
-              </div>
-            )}
+            <OutreachPreview
+              activeLead={activeLead}
+              drafts={drafts}
+              generating={generating}
+              sending={sending}
+              statusText={statusText}
+              handleDraftChange={handleDraftChange}
+              handleGenerateAI={handleGenerateAI}
+              handleSendEmail={handleSendEmail}
+              useTestRecipient={useTestRecipient}
+            />
           </div>
         </div>
       )}

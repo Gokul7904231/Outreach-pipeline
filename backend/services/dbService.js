@@ -53,7 +53,7 @@ function writeDb(data) {
 }
 
 // Get all history logs
-function getHistory() {
+function fetchHistoryLogs() {
   const db = readDb();
   return db.history || [];
 }
@@ -79,9 +79,6 @@ function getTemplates() {
 }
 
 module.exports = {
-  readDb,
-  writeDb,
-  getHistory,
-  addHistoryLog,
-  getTemplates
+  fetchHistoryLogs,
+  addHistoryLog
 };
